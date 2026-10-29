@@ -25,7 +25,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', changed)
   }, [])
   const open = (id: string) => { window.location.hash = `/notebooks/${id}` }
-  return <div className="app-shell">
+  return <div className={`app-shell${notebookId ? ' workspace-shell' : ''}`}>
     <header className="app-header"><div><span className="brand-mark">知</span><strong>知识研究工作台</strong></div>
       <span className="stage-badge">资料研究 · 笔记与导出</span></header>
     <nav className="page-nav" aria-label="页面导航">

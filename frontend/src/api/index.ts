@@ -26,8 +26,8 @@ export function uploadSource(id: string, file: File) {
   return requestJson<{ source: Source; duplicate: boolean }>(sourcePath(id), { method: 'POST', body })
 }
 export function getSourceDetail(id: string, sourceId: string, signal?: AbortSignal) { return requestJson<SourceDetail>(sourcePath(id, sourceId), { signal }) }
-export function getChunks(id: string, sourceId: string, offset = 0, signal?: AbortSignal) {
-  return requestJson<ChunkPage>(sourcePath(id, sourceId) + `/chunks?offset=${offset}&limit=20`, { signal })
+export function getChunks(id: string, sourceId: string, offset = 0, signal?: AbortSignal, limit = 20) {
+  return requestJson<ChunkPage>(sourcePath(id, sourceId) + `/chunks?offset=${offset}&limit=${limit}`, { signal })
 }
 export function retrySource(id: string, sourceId: string) { return requestJson<Source>(sourcePath(id, sourceId) + '/retry', { method: 'POST' }) }
 

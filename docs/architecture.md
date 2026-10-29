@@ -28,8 +28,11 @@ frontend/src/
 ├── App.tsx                         # 专题 hash 路由与应用导航
 ├── api/index.ts                    # HTTP、POST SSE 解码与错误处理
 ├── pages/NotebooksPage.tsx          # 专题创建、列表
-├── pages/WorkbenchPage.tsx         # 上传、解析/索引状态、来源勾选
+├── pages/WorkbenchPage.tsx         # 三栏组装、来源选择、引用与笔记联动
 └── components/
+    ├── common/ResizableWorkspace.tsx # 拖动分栏、栏宽偏好、窄屏切换
+    ├── common/MarkdownContent.tsx    # 对话/笔记共用的安全 Markdown 与引用
+    ├── sources/SourcePreview.tsx     # 单片预览、分页与请求取消
     ├── sources/SourcesPanel.tsx    # 原文查看、建立/重建索引、问答范围
     ├── chat/ChatPanel.tsx          # 会话、流式输出、停止、历史
     ├── citations/CitationPanel.tsx# 保存的引用快照与位置

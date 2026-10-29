@@ -7,9 +7,9 @@ import { MarkdownPreview } from './MarkdownPreview'
 import { CitationPanel } from '../citations/CitationPanel'
 
 export interface NotesHandle { saveAnswer: (messageId: string) => Promise<void> }
-interface Props { notebookId: string; setNavigationGuard: (guard: NavigationGuard) => void }
+interface Props { onOpen?: () => void; notebookId: string; setNavigationGuard: (guard: NavigationGuard) => void }
 
-export const NotesPanel = forwardRef<NotesHandle, Props>(function NotesPanel({ notebookId, setNavigationGuard }, ref) {
+export const NotesPanel = forwardRef<NotesHandle, Props>(function NotesPanel({ notebookId, setNavigationGuard, onOpen }, ref) {
   const [notes, setNotes] = useState<NoteSummary[]>([])
   const [draft, setDraft] = useState<NoteDraft | null>(null)
   const [error, setError] = useState(''); const [notice, setNotice] = useState('')
@@ -33,7 +33,8 @@ export const NotesPanel = forwardRef<NotesHandle, Props>(function NotesPanel({ n
     current.current?.dispose()
     const controller = new NoteDraft(note, (revision, title, body) => updateNote(notebookId, note.id, revision, title, body), updated)
     current.current = controller; setDraft(controller); updated(note)
-    panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (onOpen) onOpen()
+    else panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   async function load(id: string) {
     if (loading.current || !guard()) return

@@ -9,6 +9,7 @@
 - 手动向量索引：独立索引状态、模型配置标识、维度校验、版本切换和重试幂等。
 - Chroma 向量 + 中文分词 BM25 + RRF，可选 Reranker；两路检索共同受已选来源约束。
 - 多轮对话、流式回答、停止生成、有限历史、请求幂等、引用快照。
+- 三栏研究工作台：左侧资料与逐片预览、中间聊天、右侧笔记；拖动边框调宽，窄屏切换面板。
 - 独立笔记、Markdown 编辑/预览、自动/手动保存、版本冲突保护和导出。
 - 资料不足时要求模型明确说明；不把“有引用”等同于答案正确。
 
@@ -23,7 +24,7 @@
 | ③ AI 处理 | `backend/app/intelligence/` | 解析切片、混合检索、提示词、生成和引用规则 |
 | ④ 基础设施 | `backend/app/infrastructure/` | SQLite、原文件、Chroma、后台执行、模型 HTTP 客户端 |
 
-[完整架构](docs/architecture.md) · [资料入库接口](docs/ingestion.md) · [索引、问答与模型配置](docs/research.md) · [笔记使用说明](docs/notes.md) · [验收记录](docs/testing.md)
+[完整架构](docs/architecture.md) · [资料入库接口](docs/ingestion.md) · [索引、问答与模型配置](docs/research.md) · [工作台布局与操作](docs/workspace.md) · [笔记使用说明](docs/notes.md) · [验收记录](docs/testing.md)
 
 ## 安装与启动
 
