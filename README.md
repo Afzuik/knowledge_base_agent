@@ -73,6 +73,8 @@ backend/.venv/bin/python scripts/verify_models.py
 
 模型输出会变化，样例通过不等于通用准确率。切换 Embedding 模型/维度后旧索引不兼容，必须重新索引；应用不会混用旧向量。
 
+三栏版已使用 `samples/acceptance/` 的原创资料完成真实模型闭环验收，含笔记编辑导出及重启后继续问答；见 [完整验收记录](docs/real-e2e-20261029.md)。
+
 ## 验证与数据
 
 ```bash
