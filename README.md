@@ -1,34 +1,32 @@
 # 知识研究工作台
 
-面向个人学习与研究的来源驱动 AI 工作台。当前交付 **资料入库链路**，尚未接入模型或问答。
+面向个人学习与研究的来源驱动 AI 工作台。当前已完成：**专题 → 上传解析 → 手动索引 → 勾选来源 → 流式问答 → 点击引用 → 会话持久化**。
 
-## 已实现
+## 当前能力
 
-- 创建、查询专题；名称去除首尾空格，1～100 字符，允许同名。
-- 上传文本型 PDF、Markdown、TXT；原文件本地保存，默认单文件 20 MiB。
-- 后台串行解析与切片，展示等待、解析中、已解析、失败及任务历史。
-- 预览原文片段、PDF 页码或文本字符位置；分页获取片段。
-- 同专题按 SHA256 去重；失败重试、重启恢复、临时文件/孤立文件清理。
-- SQLite 持久化四张业务表；数据库版本通过 `PRAGMA user_version` 管理。
+- 本地 SQLite 保存专题、资料、片段、任务、会话、消息、引用，共七张业务表。
+- PDF / Markdown / TXT 上传、后台解析、去重、失败重试与中断恢复。
+- 手动向量索引：独立索引状态、模型配置标识、维度校验、版本切换和重试幂等。
+- Chroma 向量 + 中文分词 BM25 + RRF，可选 Reranker；两路检索共同受已选来源约束。
+- 多轮对话、流式回答、停止生成、有限历史、请求幂等、引用快照。
+- 资料不足时要求模型明确说明；不把“有引用”等同于答案正确。
 
-**已解析不等于可问答。** 当前所有资料都显示“未索引”；不调用 LLM、Embedding 或 Reranker，也不生成向量。注册登录、多用户隔离、笔记、问答和引用生成尚未实现。
+**未实现**：联网搜索、笔记编辑、注册登录、多用户隔离、协作、OCR、通用自主 Agent。仅本机单用户，不要部署公网。
 
-## 四层架构
+## 四层导航
 
 | 层 | 代码位置 | 职责 |
 |---|---|---|
-| ① 界面层 | `frontend/src/` | 专题、上传、状态轮询、片段预览 |
-| ② 应用层 | `backend/app/application/`，HTTP 入口 `backend/app/api/` | 用例、归属校验、导入编排、错误与重试规则 |
-| ③ AI 处理层 | `backend/app/intelligence/` | 当前只做本地文本解析和切片，不调用 AI 模型 |
-| ④ 数据与外部服务层 | `backend/app/infrastructure/` | SQLite、原文件、后台执行；模型和向量模块仍为占位 |
+| ① 界面 | `frontend/src/` | 专题、资料、索引操作、对话、引用面板 |
+| ② 应用 | `backend/app/application/`；入口 `backend/app/api/` | 资源范围、任务、索引编排、消息保存 |
+| ③ AI 处理 | `backend/app/intelligence/` | 解析切片、混合检索、提示词、生成和引用规则 |
+| ④ 基础设施 | `backend/app/infrastructure/` | SQLite、原文件、Chroma、后台执行、模型 HTTP 客户端 |
 
-详见 [架构文档](docs/architecture.md)、[接口与运行说明](docs/ingestion.md)、[验收记录](docs/testing.md)。
+[完整架构](docs/architecture.md) · [资料入库接口](docs/ingestion.md) · [索引、问答与模型配置](docs/research.md) · [验收记录](docs/testing.md)
 
 ## 安装与启动
 
-支持 macOS / Linux；Python 3.12、uv、Node.js（`^20.19.0 || >=22.12.0`）、npm。本轮进程互斥使用 POSIX 文件锁，**Windows 暂未支持或验证**。
-
-在仓库根目录执行：
+支持 macOS / Linux，Python 3.12、uv、Node.js（`^20.19.0 || >=22.12.0`）、npm。命令在仓库根目录执行：
 
 ```bash
 (cd backend && uv sync --frozen)
@@ -36,33 +34,43 @@
 bash scripts/run_local.sh
 ```
 
-打开 <http://127.0.0.1:8765>。首次启动会应用版本 1 的建表迁移；导入模块本身不会建库。Ctrl+C 正常关闭时等待当前任务完成。
+打开 <http://127.0.0.1:8765>。开发前端另开终端运行 `(cd frontend && npm run dev)`，访问 <http://127.0.0.1:5173>。
 
-无需 API Key，也不会读取旧 `.env`。原版与 `learning-notes` 均在仓库外，不会自动导入。
+首次启动建立 schema v2；旧 v1 数据库升级前会自动保存本地备份，然后事务化迁移。仅允许单个后端进程使用同一数据目录。不要添加 `--workers`。
 
-### 演示
+## 模型配置
 
-1. 创建“Agent 学习”专题。
-2. 上传 `samples/agent-learning.md` 或 `samples/reading-note.txt`。
-3. 等待“已解析”，点击资料核对片段。
-4. 重复上传同一文件，观察去重提示。
-5. 刷新或停止服务后重新启动，专题、资料与片段仍然存在。
+本机 `backend/.env`（已被 Git 忽略）可独立设置三个服务：
 
-文本需要 UTF-8；扫描件无文本、损坏或加密 PDF 将显示明确失败原因。重试不会修复损坏内容，需要恢复原文件或上传修正后的新资料。
+| 用途 | 服务 | 本轮验证配置 |
+|---|---|---|
+| LLM | DeepSeek 官方 | `deepseek-flash`，`https://api.deepseek.com` |
+| Embedding | SiliconFlow | `Qwen/Qwen3-Embedding-8B`，4096 维 |
+| Reranker | SiliconFlow | `Qwen/Qwen3-Reranker-8B` |
 
-### 开发与独立数据目录
+参考 `backend/.env.example`。也可用 `WORKBENCH_MODEL_ENV` 指向已有本地配置，仅导入配置值，不复制密钥到源码。环境变量 > 新版 `.env` > 被引用配置。改完配置后重启应用。
 
-运行后端的同时，在另一个终端执行 `(cd frontend && npm run dev)`，访问 <http://127.0.0.1:5173>。
+**不同服务的 Key 不能混用。** 指向不同地址但没有显式设置对应 Key 时，不把原供应商 Key 转发过去。当前本机已配置的实际 Key 不在 Git 中；克隆仓库后需自行配置。
 
-可通过非敏感环境变量指定独立绝对数据目录，例如：
+显式验证服务（会发送少量合成文本并产生 API 消费）：
 
 ```bash
-WORKBENCH_DATA_DIR="$PWD/reports/local-demo-data" bash scripts/run_local.sh
+backend/.venv/bin/python scripts/verify_models.py
 ```
 
-仅允许一个后端进程使用同一数据目录，不要添加 `--workers`。服务只监听本机，不要暴露到公网。
+默认输出脱敏结果到被忽略的 `reports/rag/latest-model-check.json`；只输出主机、模型名、维度和测试结果，不输出密钥。解析文件不调用模型；点击建立索引或发送问题才调用服务。
 
-## 测试
+## 演示步骤
+
+1. 创建专题，上传 `samples/budget-a.md`、`samples/budget-b.md`。
+2. 等待解析完成，分别点击“建立索引”，等待“可检索”。
+3. 只勾选 A，提问预算；只勾选 B，再提问；同时选择两份比较冲突。
+4. 点击回答的 `[S1]` 等按钮，核对原文、页码或文本位置。
+5. 继续追问，或刷新/重启后打开会话，确认消息与引用仍在。
+
+模型输出会变化，样例通过不等于通用准确率。切换 Embedding 模型/维度后旧索引不兼容，必须重新索引；应用不会混用旧向量。
+
+## 验证与数据
 
 ```bash
 (cd backend && .venv/bin/python -m pytest -q)
@@ -70,14 +78,10 @@ WORKBENCH_DATA_DIR="$PWD/reports/local-demo-data" bash scripts/run_local.sh
 bash -n scripts/run_local.sh
 ```
 
-自动化测试全部使用临时目录，不写正式 `data`，也不调用模型。健康接口标识 `ingestion_ready: true`、`qa_ready: false`、`business_ready: false`：资料处理能力已接入，但完整研究流程尚未完成。这不是持续磁盘健康检测。
+自动化测试使用临时目录、可控模型替身，并包含真实本地 Chroma 操作；不会调用付费服务。真实模型检查需显式运行上述脚本。
 
-## 数据与限制
-
-- SQLite：`data/app.sqlite3`；原文件：`data/uploads/<source-id>`；向量目录当前不使用。
-- 数据、原文件、日志、密钥、虚拟环境和构建产物均不提交 Git。
-- 删除整个数据目录不可当成正常的恢复方式。备份/恢复方法见运行说明。
-- 原文件按内容不可变；处理前核验大小与 SHA256，检测手工修改。
-- 这仍是本机单用户应用；固定身份不是认证，专题范围校验不是多租户安全证明。
-- 默认限制 200 页 PDF、200 万字符、单页解压内容 10 MiB；不是隔离恶意 PDF 的沙箱。不要导入不可信的攻击性文件。
-- 不支持 OCR、URL 抓取、文件替换、删除专题或资料；本轮只完成已确认的创建与导入链路。
+- 业务库：`data/app.sqlite3`；原文件：`data/uploads`；向量：`data/chroma`。
+- `WORKBENCH_DATA_DIR` 可指定独立绝对路径用于演示或测试。
+- 停止服务后备份整个数据目录；不要只复制向量库或使用旧版重建脚本。
+- 健康接口的 `qa_ready` 仅表示必要模型配置存在，不保证实时网络、额度或服务健康；`business_ready=false` 表示完整产品（如笔记等）仍未完成。
+- 密钥、原文件、数据库、日志、截图、依赖和构建产物均不提交 Git。

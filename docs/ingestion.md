@@ -16,7 +16,7 @@
 | GET | `/notebooks/{nid}/sources/{sid}/chunks` | 仅 parsed 可读，其他状态 409；offset≥0、1≤limit≤100 |
 | POST | `/notebooks/{nid}/sources/{sid}/retry` | 失败来源且原文件存在时 202；非失败/已重试/原文缺失为 409 |
 
-上传响应为 `{"source": {...}, "duplicate": false}`。parsed 不代表已索引；每条来源包含 `index_status: not_indexed`。存储路径与 owner 不出现在响应中。
+上传响应为 `{"source": {...}, "duplicate": false}`。parsed 不代表已索引；每条来源包含 `index_status（未建立索引时为 not_indexed）`。存储路径与 owner 不出现在响应中。
 
 输入错误返回 422/415；大体积请求早期返回 413；数据库或文件系统故障返回 503；未完成解析读取片段返回 409。应用错误使用 `code`、`message`；Pydantic 校验错误使用标准 `detail`。异常消息不暴露内部路径或密钥。
 
@@ -29,7 +29,7 @@
 - PDF：最多 200 页，提取后最多 200 万字符，解压页流最多 10 MiB；这些不是针对恶意文件的硬资源沙箱。解析器线程没有强制终止超时，恶意或极复杂 PDF 仍可能拖慢当前任务。
 - TXT/MD：UTF-8 或 UTF-8 BOM；拒绝无文本、非法编码和异常控制字符。Markdown 作为原文显示，不执行 HTML。
 - 默认片段 800 字符、重叠 100；PDF 不跨页切片，页码从 1 开始。
-- 只保存解析结果和位置，不调用模型、不写 Chroma。
+- 解析阶段只保存文本和位置，不调用模型；后续手动索引与问答见 research.md。
 
 ## 后台执行
 
@@ -39,7 +39,7 @@
 
 ## 数据与备份
 
-默认目录为仓库 `data/`；`WORKBENCH_DATA_DIR` 可指定独立数据目录。一个目录不能由多个后端进程同时打开。本次测试均使用临时目录或被忽略的 `reports/ingestion/browser-data`，不会将测试资料放入默认库。
+默认目录为仓库 `data/`；`WORKBENCH_DATA_DIR` 可指定独立数据目录。一个目录不能由多个后端进程同时打开。测试使用临时目录或被忽略的 `reports/` 下独立数据目录，不会将测试资料放入默认库。
 
 备份步骤：
 

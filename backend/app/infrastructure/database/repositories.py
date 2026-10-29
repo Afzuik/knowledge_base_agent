@@ -76,17 +76,19 @@ class Repository:
             s.add(Job(id=uuid4().hex, source_id=source_id, notebook_id=notebook_id, owner_id=owner))
             return True
 
-    def claim(self):
+    def claim(self, kind="parse"):
         with self.session.begin() as s:
-            row = s.scalar(select(Job).where(Job.status == 'queued').order_by(Job.created_at, Job.id).limit(1))
+            row = s.scalar(select(Job).where(Job.status == 'queued', Job.kind == kind).order_by(Job.created_at, Job.id).limit(1))
             if not row:
                 return None
             changed = s.execute(update(Job).where(Job.id == row.id, Job.status == 'queued')
-                .values(status='running', stage='parsing', started_at=now()))
+                .values(status='running', stage='parsing' if kind == 'parse' else 'embedding', started_at=now()))
             if changed.rowcount != 1:
                 return None
             source = s.get(Source, row.source_id)
-            source.status = 'parsing'; source.updated_at = now()
+            if kind == 'parse': source.status = 'parsing'
+            else: source.index_status = 'indexing'
+            source.updated_at = now()
             s.flush()
             return values(row), values(source)
 
@@ -102,6 +104,7 @@ class Repository:
             s.execute(delete(Chunk).where(Chunk.source_id == source_id))
             s.add_all([Chunk(source_id=source_id, **chunk) for chunk in chunks])
             source = s.get(Source, source_id)
+            source.index_status = 'not_indexed'; source.index_profile = None; source.index_revision = None; source.index_dimension = None; source.index_error = None
             source.status = 'parsed'; source.chunk_count = len(chunks); source.page_count = page_count
             source.error_code = None; source.error_message = None; source.updated_at = now()
             job.status = 'succeeded'; job.stage = 'done'; job.finished_at = now()
@@ -109,7 +112,11 @@ class Repository:
     def fail(self, job_id, source_id, code, message):
         with self.session.begin() as s:
             job = s.get(Job, job_id); source = s.get(Source, source_id)
-            source.status = 'failed'; source.error_code = code; source.error_message = message; source.updated_at = now()
+            if job.kind == 'index':
+                source.index_status = 'failed'; source.index_error = message
+            else:
+                source.status = 'failed'; source.error_code = code; source.error_message = message
+            source.updated_at = now()
             job.status = 'failed'; job.stage = 'failed'; job.error_code = code; job.error_message = message; job.finished_at = now()
 
     def all_sources(self):

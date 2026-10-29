@@ -4,12 +4,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class HealthResponse(BaseModel):
     status: Literal['ok'] = 'ok'
-    stage: Literal['ingestion'] = 'ingestion'
+    stage: Literal['research'] = 'research'
     mode: Literal['local-single-user'] = 'local-single-user'
     business_ready: bool = False  # Full research workflow is still unavailable.
     ingestion_ready: bool = True
     qa_ready: bool = False
     max_upload_bytes: int
+    model_services: dict
 
 
 class NotebookCreate(BaseModel):
@@ -37,7 +38,12 @@ class SourceOut(BaseModel):
     size_bytes: int
     sha256: str
     status: Literal['queued', 'parsing', 'parsed', 'failed']
-    index_status: Literal['not_indexed'] = 'not_indexed'
+    index_status: Literal['not_indexed','queued','indexing','ready','failed']
+    index_profile: str | None
+    index_revision: str | None
+    index_dimension: int | None
+    index_error: str | None
+    index_compatible: bool = False
     page_count: int
     chunk_count: int
     error_code: str | None
@@ -53,6 +59,7 @@ class UploadOut(BaseModel):
 
 class JobOut(BaseModel):
     id: str
+    kind: str
     status: str
     stage: str
     error_code: str | None
@@ -83,3 +90,25 @@ class ChunkPage(BaseModel):
     total: int
     offset: int
     limit: int
+
+
+class IndexRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    force: bool = False
+
+
+class ConversationCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    title: str = Field(default='研究对话', max_length=100)
+
+
+class Question(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    question: str = Field(min_length=1, max_length=2000)
+    source_ids: list[str] = Field(min_length=1, max_length=10)
+    request_key: str = Field(min_length=8, max_length=128, pattern=r'^[a-zA-Z0-9_-]+$')
+
+    @field_validator('question', mode='before')
+    @classmethod
+    def trim_question(cls, value):
+        return value.strip() if isinstance(value,str) else value

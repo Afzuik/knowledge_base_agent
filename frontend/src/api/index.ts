@@ -1,4 +1,4 @@
-import type { HealthResponse, Notebook, Source, SourceDetail, ChunkPage } from '../types'
+import type { HealthResponse, Notebook, Source, SourceDetail, ChunkPage, Conversation, Message, StreamEvent } from '../types'
 
 export async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api${path}`, options)
@@ -26,3 +26,41 @@ export function getChunks(id: string, sourceId: string, offset = 0, signal?: Abo
   return requestJson<ChunkPage>(sourcePath(id, sourceId) + `/chunks?offset=${offset}&limit=20`, { signal })
 }
 export function retrySource(id: string, sourceId: string) { return requestJson<Source>(sourcePath(id, sourceId) + '/retry', { method: 'POST' }) }
+
+export function indexSource(nid: string, sid: string, force = false) {
+  return requestJson<Source>(sourcePath(nid, sid) + '/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force }) })
+}
+const conversationPath = (nid: string) => `/notebooks/${encodeURIComponent(nid)}/conversations`
+export function getConversations(nid: string, signal?: AbortSignal) { return requestJson<Conversation[]>(conversationPath(nid), { signal }) }
+export function createConversation(nid: string, title: string) { return requestJson<Conversation>(conversationPath(nid), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) }) }
+export function getMessages(nid: string, cid: string, signal?: AbortSignal) { return requestJson<Message[]>(conversationPath(nid) + `/${encodeURIComponent(cid)}/messages`, { signal }) }
+export async function askQuestion(nid: string, cid: string, question: string, sourceIds: string[], requestKey: string, onEvent: (event: StreamEvent) => void, signal: AbortSignal) {
+  const response = await fetch('/api' + conversationPath(nid) + `/${encodeURIComponent(cid)}/messages`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+    body: JSON.stringify({ question, source_ids: sourceIds, request_key: requestKey })
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.message || body?.detail?.[0]?.msg || `请求失败（HTTP ${response.status}）`)
+  }
+  if (!response.body) throw new Error('浏览器不支持流式响应。')
+  const reader = response.body.getReader(); const decoder = new TextDecoder()
+  let buffer = ''; let terminal = false
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true })
+      buffer = buffer.replace(/\r\n/g, '\n')
+      let boundary: number
+      while ((boundary = buffer.indexOf('\n\n')) >= 0) {
+        const block = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2)
+        const lines = block.split('\n')
+        const event = lines.find(x => x.startsWith('event:'))?.slice(6).trim()
+        const raw = lines.filter(x => x.startsWith('data:')).map(x => x.slice(5).trim()).join('\n')
+        if (event && raw) { const data = JSON.parse(raw); onEvent({ event, data }); if (event === 'done' || event === 'error') terminal = true }
+      }
+      if (done) break
+    }
+    if (!terminal) throw new Error('回答连接中断，未确认完成；可刷新查看保存状态。')
+  } finally { reader.releaseLock() }
+}

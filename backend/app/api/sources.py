@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, UploadFile, Response, Query
 from app.application.identity import get_local_owner_id
-from .schemas import SourceOut, UploadOut, SourceDetail, ChunkPage
+from .schemas import SourceOut, UploadOut, SourceDetail, ChunkPage, IndexRequest
 
 router = APIRouter(prefix='/notebooks/{notebook_id}/sources', tags=['sources'])
 
@@ -10,20 +10,20 @@ def upload(notebook_id: str, file: UploadFile, request: Request, response: Respo
     try:
         source, duplicate = request.app.state.sources.upload(get_local_owner_id(), notebook_id, file.filename, file.file)
         response.status_code = 200 if duplicate else 202
-        return dict(source=source, duplicate=duplicate)
+        return dict(source=request.app.state.indexing.decorate(source), duplicate=duplicate)
     finally:
         file.file.close()
 
 
 @router.get('', response_model=list[SourceOut])
 def list_sources(notebook_id: str, request: Request):
-    return request.app.state.sources.list(get_local_owner_id(), notebook_id)
+    return [request.app.state.indexing.decorate(row) for row in request.app.state.sources.list(get_local_owner_id(), notebook_id)]
 
 
 @router.get('/{source_id}', response_model=SourceDetail)
 def detail(notebook_id: str, source_id: str, request: Request):
     source, jobs = request.app.state.sources.detail(get_local_owner_id(), notebook_id, source_id)
-    return dict(source=source, jobs=jobs)
+    return dict(source=request.app.state.indexing.decorate(source), jobs=jobs)
 
 
 @router.get('/{source_id}/chunks', response_model=ChunkPage)
@@ -36,3 +36,8 @@ def chunks(notebook_id: str, source_id: str, request: Request,
 @router.post('/{source_id}/retry', response_model=SourceOut, status_code=202)
 def retry(notebook_id: str, source_id: str, request: Request):
     return request.app.state.sources.retry(get_local_owner_id(), notebook_id, source_id)
+
+
+@router.post('/{source_id}/index', response_model=SourceOut, status_code=202)
+def index(notebook_id: str, source_id: str, body: IndexRequest, request: Request):
+    return request.app.state.indexing.request(get_local_owner_id(), notebook_id, source_id, body.force)

@@ -7,8 +7,12 @@ from app.main import create_app
 def test_health_distinguishes_ingestion_from_qa(client, config):
     response = client.get('/api/health')
     assert response.status_code == 200
-    assert response.json() == dict(status='ok', stage='ingestion', mode='local-single-user',
-        business_ready=False, ingestion_ready=True, qa_ready=False, max_upload_bytes=config.max_upload_bytes)
+    body = response.json()
+    assert body['stage'] == 'research' and body['ingestion_ready'] is True
+    assert body['qa_ready'] is False and body['business_ready'] is False
+    assert body['max_upload_bytes'] == config.max_upload_bytes
+    assert body['model_services']['llm']['configured'] is False
+
 
 
 def test_qa_and_notes_remain_unimplemented(client):
