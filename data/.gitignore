@@ -1,0 +1,10 @@
+# Keep directory markers only; never commit runtime documents or databases.
+*
+!.gitignore
+!README.md
+!uploads/
+!chroma/
+uploads/*
+!uploads/.gitkeep
+chroma/*
+!chroma/.gitkeep

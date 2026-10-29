@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #20332d; background: #f6f7f4; font-synthesis: none; }
+body { margin: 0; }
+button, textarea { font: inherit; }
+button { border: 1px solid #d7dfd7; border-radius: 8px; padding: 9px 15px; background: white; cursor: pointer; }
+button:focus-visible { outline: 3px solid #89b49e; outline-offset: 3px; }
+button:disabled { cursor: not-allowed; color: #6d776f; background: #edf0eb; }
+.app-shell { max-width: 1500px; margin: auto; padding: 0 32px; }
+.app-header { height: 84px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #dfe4dc; gap: 12px; }
+.app-header > div { display: flex; gap: 12px; align-items: center; }
+.brand-mark { background: #254e3f; color: white; border-radius: 10px; padding: 8px 12px; }
+.stage-badge { font-size: 12px; padding: 6px 10px; border-radius: 20px; background: #ece8d7; color: #675a2d; }
+.page-nav { display: flex; align-items: center; gap: 12px; padding: 20px 0; flex-wrap: wrap; }
+.page-nav button[aria-pressed="true"] { background: #254e3f; color: white; border-color: #254e3f; }
+.health { margin-left: auto; font-size: 13px; color: #68776d; }
+.health.online { color: #28654a; }
+.health.offline { color: #985423; }
+.home-page { padding: 48px 0; max-width: 1100px; margin: auto; }
+.eyebrow { font-size: 12px; letter-spacing: .15em; color: #6b806e; }
+h1 { font-size: clamp(24px, 3vw, 38px); font-weight: 650; margin: 14px 0; }
+h2 { font-size: 17px; font-weight: 650; }
+h3 { font-size: 16px; font-weight: 600; }
+.intro { color: #637369; line-height: 1.8; }
+.section-title { display: flex; justify-content: space-between; align-items: center; margin: 46px 0 18px; }
+.empty-state { border: 1px dashed #d3ddd1; border-radius: 12px; padding: 36px 24px; background: #fcfdfa; }
+.empty-state p { color: #6a786d; line-height: 1.8; font-size: 14px; margin-top: 10px; }
+.flow-strip { margin: 30px 0; font-size: 14px; display: flex; gap: 20px; flex-wrap: wrap; color: #526b59; }
+.preview-notice { font-size: 13px; color: #6a746a; margin: 12px 0 20px; }
+.workbench-grid { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.8fr) minmax(220px, 1fr); gap: 18px; }
+.panel { border: 1px solid #dce3d9; background: white; border-radius: 14px; padding: 22px; min-width: 0; }
+.panel > h2 { margin-bottom: 20px; }
+.panel > button { margin-bottom: 18px; }
+.panel .empty-state { padding: 24px 16px; }
+.chat-panel { min-height: 420px; }
+.chat-panel label { display: block; font-size: 13px; margin-top: 34px; }
+textarea { width: 100%; box-sizing: border-box; min-height: 90px; border: 1px solid #dce3d9; border-radius: 8px; padding: 12px; margin: 10px 0; resize: vertical; }
+footer { border-top: 1px solid #dfe4dc; margin-top: 40px; padding: 24px 0; font-size: 12px; color: #6a786d; }
+@media (max-width: 900px) { .workbench-grid { grid-template-columns: 1fr; } .app-shell { padding: 0 18px; } .health { margin-left: 0; width: 100%; } .app-header { height: auto; min-height: 84px; flex-wrap: wrap; padding: 14px 0; } }

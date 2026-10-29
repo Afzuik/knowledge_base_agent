@@ -1,0 +1,38 @@
+# Secrets (example templates only are safe to track)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Dependencies / caches / build outputs
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+*.tsbuildinfo
+
+# Local runtime data / logs
+*.sqlite*
+*.db
+*.log
+reports/
+logs/
+chroma_db/
+
+# Local editor / OS files
+.vscode/
+.idea/
+.DS_Store
+._*
+*.swp
