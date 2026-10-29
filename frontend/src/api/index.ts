@@ -1,11 +1,15 @@
-import type { HealthResponse, Notebook, Source, SourceDetail, ChunkPage, Conversation, Message, StreamEvent } from '../types'
+import type { HealthResponse, Notebook, Source, SourceDetail, ChunkPage, Conversation, Message, StreamEvent, Note, NoteSummary } from '../types'
+
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public code: string) { super(message) }
+}
 
 export async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api${path}`, options)
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     const detail = body?.message || (typeof body?.detail === 'string' ? body.detail : body?.detail?.[0]?.msg)
-    throw new Error(detail || `请求失败（HTTP ${response.status}）`)
+    throw new ApiError(detail || `请求失败（HTTP ${response.status}）`, response.status, body?.code || "request_failed")
   }
   return response.json() as Promise<T>
 }
@@ -63,4 +67,24 @@ export async function askQuestion(nid: string, cid: string, question: string, so
     }
     if (!terminal) throw new Error('回答连接中断，未确认完成；可刷新查看保存状态。')
   } finally { reader.releaseLock() }
+}
+
+const notesPath = (nid: string, noteId?: string) => `/notebooks/${encodeURIComponent(nid)}/notes${noteId ? '/' + encodeURIComponent(noteId) : ''}`
+export function saveAnswerAsNote(nid: string, messageId: string) {
+  return requestJson<{ note: Note; created: boolean }>(notesPath(nid), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ origin_message_id: messageId }) })
+}
+export function getNotes(nid: string, signal?: AbortSignal) { return requestJson<NoteSummary[]>(notesPath(nid), { signal, cache: 'no-store' }) }
+export function getNote(nid: string, noteId: string, signal?: AbortSignal) { return requestJson<Note>(notesPath(nid, noteId), { signal, cache: 'no-store' }) }
+export function updateNote(nid: string, noteId: string, revision: number, title: string, body: string) {
+  return requestJson<Note>(notesPath(nid, noteId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000), body: JSON.stringify({ revision, title, body_markdown: body }) })
+}
+export async function exportNote(nid: string, noteId: string, revision: number): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch('/api' + notesPath(nid, noteId) + `/export?revision=${revision}`, { signal: AbortSignal.timeout(15000) })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new ApiError(body?.message || '导出失败', response.status, body?.code || 'export_failed')
+  }
+  if (response.headers.get('X-Note-Revision') !== String(revision)) throw new Error('导出版本与请求不一致。')
+  const match = /filename\*=UTF-8''([^;]+)/i.exec(response.headers.get('Content-Disposition') || '')
+  return { blob: await response.blob(), filename: match ? decodeURIComponent(match[1]) : '研究笔记.md' }
 }

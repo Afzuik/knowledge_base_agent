@@ -31,3 +31,12 @@ export interface Message {
   source_ids: string[]; citations: Citation[]; warnings: string[]; error: string | null; created_at: string
 }
 export interface StreamEvent { event: string; data: { message_id?: string; text?: string; stage?: string; message?: Message; replayed?: boolean } }
+
+export interface NoteSummary {
+  id: string; notebook_id: string; origin_message_id: string; title: string
+  revision: number; created_at: string; updated_at: string
+}
+export interface Note extends NoteSummary {
+  body_markdown: string; citations: Citation[]; used_labels: string[]; invalid_labels: string[]
+}
+export type NavigationGuard = (() => boolean) | null

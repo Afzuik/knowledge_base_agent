@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { getChunks, getHealth, indexSource, getNotebook, getSourceDetail, getSources, retrySource, uploadSource } from '../api'
 import type { ChunkPage, Notebook, Source, SourceDetail } from '../types'
+import { NotesPanel, type NotesHandle } from '../components/notes/NotesPanel'
+import type { NavigationGuard } from '../types'
 import { ChatPanel } from '../components/chat/ChatPanel'
 import { SourcesPanel, sourceStatus, indexStatus } from '../components/sources/SourcesPanel'
 
-export function WorkbenchPage({ notebookId }: { notebookId: string }) {
+export function WorkbenchPage({ notebookId, setNavigationGuard }: { notebookId: string; setNavigationGuard: (guard: NavigationGuard) => void }) {
+  const notesRef = useRef<NotesHandle>(null)
   const [models, setModels] = useState('正在读取服务配置…')
   const [chosen, setChosen] = useState<string[]>([])
   const [notebook, setNotebook] = useState<Notebook | null>(null)
@@ -101,6 +104,7 @@ export function WorkbenchPage({ notebookId }: { notebookId: string }) {
         <details className="job-history"><summary>处理记录（{detail.jobs.length}）</summary>{detail.jobs.map(j => <p key={j.id}>{new Date(j.created_at).toLocaleString()} · {j.kind} · {j.status} / {j.stage}{j.error_message ? ` · ${j.error_message}` : ''}</p>)}</details>
       </>}
     </div></div>
-    <ChatPanel notebookId={notebookId} sources={sources} sourceIds={chosen} selectionValid={chosen.length <= 10 && chosen.every(id => sources.some(s => s.id === id && s.index_compatible && s.status === 'parsed'))} />
+    <ChatPanel onSaveAnswer={async id => { await notesRef.current?.saveAnswer(id) }} notebookId={notebookId} sources={sources} sourceIds={chosen} selectionValid={chosen.length <= 10 && chosen.every(id => sources.some(s => s.id === id && s.index_compatible && s.status === 'parsed'))} />
+    <NotesPanel ref={notesRef} notebookId={notebookId} setNavigationGuard={setNavigationGuard} />
   </section>
 }

@@ -56,16 +56,16 @@ def pdf_bytes(texts=('First page fact.', 'Second page fact.'), encrypted=False):
     return out.getvalue()
 
 
-def test_versioned_four_tables_and_constraints(config):
+def test_versioned_schema_and_constraints(config):
     engine = build_engine(config)
     try:
         migrate(engine); migrate(engine)
-        assert set(inspect(engine).get_table_names()) == {'notebooks', 'sources', 'chunks', 'jobs', 'conversations', 'messages', 'citations'}
+        assert set(inspect(engine).get_table_names()) == {'notebooks', 'sources', 'chunks', 'jobs', 'conversations', 'messages', 'citations', 'notes'}
         for table in Base.metadata.sorted_tables:
             assert {c['name'] for c in inspect(engine).get_columns(table.name)} == set(table.columns.keys())
         with engine.connect() as s:
             assert s.exec_driver_sql('PRAGMA foreign_keys').scalar_one() == 1
-            assert s.exec_driver_sql('PRAGMA user_version').scalar_one() == 2
+            assert s.exec_driver_sql('PRAGMA user_version').scalar_one() == 3
             with pytest.raises(IntegrityError):
                 s.execute(text("INSERT INTO chunks VALUES ('x','nonexistent',0,'text',NULL,NULL,0,4)"))
     finally:

@@ -3,7 +3,8 @@ import { askQuestion, createConversation, getConversations, getMessages } from '
 import type { Citation, Conversation, Message, Source } from '../../types'
 import { CitationPanel } from '../citations/CitationPanel'
 
-export function ChatPanel({ notebookId, sourceIds, selectionValid, sources }: { notebookId: string; sourceIds: string[]; selectionValid: boolean; sources: Source[] }) {
+export function ChatPanel({ notebookId, sourceIds, selectionValid, sources, onSaveAnswer }: { notebookId: string; sourceIds: string[]; selectionValid: boolean; sources: Source[]; onSaveAnswer: (messageId: string) => Promise<void> }) {
+  const [savingNote, setSavingNote] = useState<string | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [conversation, setConversation] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
@@ -64,6 +65,11 @@ export function ChatPanel({ notebookId, sourceIds, selectionValid, sources }: { 
       }
     }
   }
+  async function saveNote(messageId: string) {
+    setSavingNote(messageId); setError('')
+    try { await onSaveAnswer(messageId) } catch (e) { setError((e as Error).message) }
+    finally { setSavingNote(null) }
+  }
   function answer(message: Message) {
     const mapping = new Map(message.citations.map(c => [c.label, c]))
     return message.content.split(/(\[S\d+\])/g).map((part, i) => {
@@ -83,6 +89,7 @@ export function ChatPanel({ notebookId, sourceIds, selectionValid, sources }: { 
         <h3>{m.role === 'user' ? '你' : '知识助手'} <small>{m.status === 'running' ? '生成中' : m.status === 'failed' ? '失败' : m.status === 'interrupted' ? '未完成' : ''}</small></h3>
         <p className="muted">本轮资料：{m.source_ids.map(id => sources.find(s => s.id === id)?.filename || id.slice(0, 8)).join("、")}</p><div className="answer-text">{answer(m)}</div>{m.error && <p className="error">{m.error}</p>}
         {m.warnings.map((w,i) => <p className="notice" key={i}>{w}</p>)}
+        {m.role === 'assistant' && m.status === 'complete' && <button disabled={savingNote !== null} onClick={() => void saveNote(m.id)}>{savingNote === m.id ? '正在保存笔记…' : '保存为笔记'}</button>}
       </article>)}</div>
     <CitationPanel citation={citation} onClose={() => setCitation(null)} />
     <form onSubmit={send}><label htmlFor="research-question">研究问题</label><textarea id="research-question" maxLength={2000} value={question} disabled={busy} onChange={e => setQuestion(e.target.value)} placeholder="例如：这些资料记录的预算有什么不同？" />

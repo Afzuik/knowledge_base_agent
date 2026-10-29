@@ -19,6 +19,8 @@ from app.infrastructure.models import build_providers
 from app.infrastructure.vector.chroma import ChromaVectors
 from app.application.indexing import Indexing
 from app.application.chat import Chat
+from app.application.notes import Notes
+from app.infrastructure.database.note_repository import NoteRepository
 from app.infrastructure.storage.local_files import LocalFiles
 from app.infrastructure.tasks.local_runner import LocalRunner, process_lock
 
@@ -43,6 +45,7 @@ def create_app(config=None, run_worker=True, providers=None, vectors=None):
                 ingestion.recover()
                 app.state.config = config
                 app.state.repo = repo
+                app.state.notes = Notes(NoteRepository(engine))
                 app.state.notebooks = notebooks
                 app.state.sources = Sources(repo, files, notebooks, config)
                 app.state.ingestion = ingestion
@@ -61,7 +64,7 @@ def create_app(config=None, run_worker=True, providers=None, vectors=None):
                     runner.stop()
                 engine.dispose()
 
-    app = FastAPI(title='Knowledge Workbench', version='0.3.0', lifespan=lifespan)
+    app = FastAPI(title='Knowledge Workbench', version='0.4.0', lifespan=lifespan)
     app.include_router(api_router, prefix='/api')
 
     @app.middleware('http')

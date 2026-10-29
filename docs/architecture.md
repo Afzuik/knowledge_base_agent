@@ -2,7 +2,7 @@
 
 ## 状态
 
-已实现本机单用户资料入库、手动向量索引、限定来源问答、引用和会话持久化。没有联网搜索、笔记编辑、多用户认证或独立微服务。
+已实现本机单用户资料入库、手动向量索引、限定来源问答、引用、会话持久化、笔记编辑与 Markdown 导出。没有联网搜索、多用户认证或独立微服务。
 
 ## 层级与依赖
 
@@ -32,7 +32,8 @@ frontend/src/
 └── components/
     ├── sources/SourcesPanel.tsx    # 原文查看、建立/重建索引、问答范围
     ├── chat/ChatPanel.tsx          # 会话、流式输出、停止、历史
-    └── citations/CitationPanel.tsx# 保存的引用快照与位置
+    ├── citations/CitationPanel.tsx# 保存的引用快照与位置
+    └── notes/                     # NotesPanel、NoteDraft、MarkdownPreview、引用分析
 
 backend/app/
 ├── main.py                         # 生命周期、依赖组装、错误响应
@@ -42,14 +43,15 @@ backend/app/
 │   ├── health.py                   # 配置/能力标识，不探测余额
 │   ├── notebooks.py / sources.py  # 资料和索引接口
 │   ├── chat.py                     # 会话/消息 API、SSE、断开清理
-│   └── notes.py                    # 未实现
+│   └── notes.py                    # 笔记创建、读写、版本化导出
 ├── application/
 │   ├── identity.py / errors.py
 │   ├── notebooks.py / sources.py  # 专题、资料和归属校验
 │   ├── ingestion.py                # 原文件 → 解析 → 片段保存
 │   ├── indexing.py                 # 片段 → Embedding → 向量校验 → ready
 │   ├── chat.py                     # 范围、幂等、历史、RAG、持久化
-│   └── notes.py                    # 未实现
+│   ├── notes.py                    # 笔记用例与权限/版本错误处理
+│   └── note_export.py              # 确定性 Markdown 格式化，无模型
 ├── intelligence/
 │   ├── parsing.py / chunking.py
 │   ├── retrieval.py                # jieba/BM25 + 向量 → RRF → 可选精排
@@ -61,10 +63,12 @@ backend/app/
     │   ├── connection.py / models.py
     │   ├── repositories.py         # 资料、片段、任务持久化
     │   ├── rag_repository.py       # 索引版本、会话、消息、引用持久化
+    │   ├── note_repository.py      # 原子回答快照、独立笔记、revision CAS
     │   ├── migrate.py              # 升级备份、事务化 schema 迁移
     │   └── migrations/
     │       ├── 001_initial.sql
-    │       └── 002_research.sql
+    │       ├── 002_research.sql
+    │       └── 003_notes.sql
     ├── storage/local_files.py
     ├── tasks/local_runner.py       # 单进程锁、单工作线程、注入回调
     ├── vector/chroma.py            # 显式向量操作，不下载默认模型
@@ -78,7 +82,7 @@ backend/app/
 
 根目录还包括 `data`（运行数据，不提交）、`docs`（工程说明）、`samples`（公开测试材料）、`scripts`（启动/显式模型验证）。
 
-## 数据库：schema v2，七张业务表
+## 数据库：schema v3，八张业务表
 
 | 表 | 主要内容 |
 |---|---|
@@ -89,8 +93,9 @@ backend/app/
 | conversations | 专题下的会话 |
 | messages | user/assistant、请求键/指纹、来源列表、内容、状态、警告/错误 |
 | citations | 回答对应编号、chunk/source ID、文件名、原文及位置、索引版本快照 |
+| notes | 专题、来源回答、标题、Markdown 正文、引用 JSON 快照、revision、时间 |
 
-`user_version` 记录迁移版本，不增加第八张业务表。v1 升级前保存 `.v1-backup-*` 本地备份；不修改旧迁移，不覆盖非空无版本数据库。会话与消息级外键、请求唯一约束和“每会话一个生成中回答”的部分唯一索引由数据库兜底。
+`user_version` 记录迁移版本，不增加额外迁移记录表。v1/v2 升级前保存对应 `.v1-backup-*` / `.v2-backup-*` 本地备份；不修改旧迁移，不覆盖非空无版本数据库。会话与消息级外键、请求唯一约束和“每会话一个生成中回答”的部分唯一索引由数据库兜底。
 
 引用的 chunk/source ID 是历史标识，不依赖当前片段仍然存在；原文快照随消息保存，防止重建后失去当时依据。
 
@@ -127,6 +132,16 @@ parsed 来源 → 手动请求 → 持久化 index job → 分批 Embedding（�
 - 无效编号取消链接并警告；没有有效引用也警告。编号正确不等于语义被核验，当前未实现自动事实核查。
 - Reranker 失败降级至 RRF 并保存警告。LLM/Embedding/存储失败不退回无资料依据的普通回答。
 - SSE 只有保存成功才发送 done；截断/错误不记为成功。断开时保留已接收内容并标记 interrupted，重启恢复运行中记录。
+
+## 笔记链路（不经过模型）
+
+```text
+完整回答 → API → application.notes → NoteRepository（正文+引用快照原子保存）
+编辑 → 串行自动保存 → revision 条件更新
+导出 → 先确认最新保存版本 → 校验引用 → note_export 生成 UTF-8 Markdown
+```
+
+笔记独立于原回答和证据，重复保存不覆盖编辑，修改笔记不更新 messages/citations/chunks/jobs。普通 CRUD 和格式化不强行进入 AI 层。引用 JSON 为保存时快照，只读；无效引用可保存但不能导出。未保存输入和版本冲突处理见 notes.md。
 
 ## 安全与部署边界
 

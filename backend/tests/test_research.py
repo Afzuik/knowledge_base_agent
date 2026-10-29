@@ -301,7 +301,7 @@ def test_migration_v1_preserves_content_and_creates_backup(config):
     try:
         migrate(engine)
         with engine.connect() as c:
-            assert c.exec_driver_sql('PRAGMA user_version').scalar_one()==2
+            assert c.exec_driver_sql('PRAGMA user_version').scalar_one()==3
             assert c.execute(text('SELECT name FROM notebooks')).scalar_one()=='original'
         backup=list(config.data_dir.glob('*.v1-backup-*'));assert len(backup)==1
         with sqlite3.connect(backup[0]) as db: assert db.execute('PRAGMA user_version').fetchone()[0]==1

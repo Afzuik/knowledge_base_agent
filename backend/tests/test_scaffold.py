@@ -15,7 +15,7 @@ def test_health_distinguishes_ingestion_from_qa(client, config):
 
 
 
-def test_qa_and_notes_remain_unimplemented(client):
+def test_no_unscoped_qa_or_notes_routes(client):
     for path in ['chat', 'notes']:
         assert client.get(f'/api/{path}').status_code == 404
 

@@ -115,3 +115,16 @@ class Citation(Base):
     char_start: Mapped[int] = mapped_column(Integer)
     char_end: Mapped[int] = mapped_column(Integer)
     index_revision: Mapped[str] = mapped_column(String)
+
+
+class Note(Base):
+    __tablename__ = 'notes'
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    notebook_id: Mapped[str] = mapped_column(ForeignKey('notebooks.id'), index=True)
+    origin_message_id: Mapped[str] = mapped_column(String, unique=True)
+    title: Mapped[str] = mapped_column(String(120))
+    body_markdown: Mapped[str] = mapped_column(Text)
+    citations_snapshot_json: Mapped[str] = mapped_column(Text)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[str] = mapped_column(String, default=now)
+    updated_at: Mapped[str] = mapped_column(String, default=now)

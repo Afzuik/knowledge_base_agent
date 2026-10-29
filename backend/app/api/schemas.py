@@ -6,7 +6,7 @@ class HealthResponse(BaseModel):
     status: Literal['ok'] = 'ok'
     stage: Literal['research'] = 'research'
     mode: Literal['local-single-user'] = 'local-single-user'
-    business_ready: bool = False  # Full research workflow is still unavailable.
+    business_ready: bool = False  # Reserved release-readiness flag, not production certification.
     ingestion_ready: bool = True
     qa_ready: bool = False
     max_upload_bytes: int
@@ -112,3 +112,38 @@ class Question(BaseModel):
     @classmethod
     def trim_question(cls, value):
         return value.strip() if isinstance(value,str) else value
+
+
+class NoteCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    origin_message_id: str = Field(min_length=1,max_length=128)
+    title: str | None = Field(default=None,min_length=1,max_length=120)
+
+
+class NoteUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    revision: int = Field(ge=1)
+    title: str = Field(min_length=1,max_length=120)
+    body_markdown: str = Field(max_length=100000)
+
+
+class NoteSummary(BaseModel):
+    id: str
+    notebook_id: str
+    origin_message_id: str
+    title: str
+    revision: int
+    created_at: str
+    updated_at: str
+
+
+class NoteOut(NoteSummary):
+    body_markdown: str
+    citations: list[dict]
+    used_labels: list[str]
+    invalid_labels: list[str]
+
+
+class NoteCreateOut(BaseModel):
+    note: NoteOut
+    created: bool

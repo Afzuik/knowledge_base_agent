@@ -24,7 +24,7 @@ export function NotebooksPage({ onOpen }: { onOpen: (id: string) => void }) {
   }
   return <section className="home-page">
     <p className="eyebrow">SOURCE-GROUNDED WORKSPACE</p><h1>从资料出发，让研究有据可循。</h1>
-    <p className="intro">创建专题、导入资料、建立索引，再围绕所选来源提问并核对引用。</p>
+    <p className="intro">创建专题、导入资料、建立索引，再围绕所选来源提问、核对引用，并保存笔记导出。</p>
     <form onSubmit={submit} className="create-form"><label htmlFor="notebook-name">专题名称</label>
       <input id="notebook-name" value={name} onChange={e => setName(e.target.value)} maxLength={100} required placeholder="例如：Agent 技术学习" />
       <button disabled={creating || !name.trim()}>{creating ? '创建中…' : '创建专题'}</button></form>
