@@ -13,12 +13,23 @@
 
 ```text
 frontend/   前端页面、组件、请求封装
-backend/    HTTP 接口、业务服务、RAG、测试
+backend/    四层映射的后端：api / application / intelligence / infrastructure
 data/       新版运行数据（不提交用户文件或数据库）
 docs/       工程架构与演示验收说明
 samples/    公开演示资料（目前只有说明）
 scripts/    统一启动入口
 ```
+
+## 四层架构导航
+
+| 系统层 | 代码位置 | 查找内容 |
+|---|---|---|
+| ① 界面层 | `frontend/src/` | 页面、交互、HTTP 请求封装 |
+| ② 应用层 | `backend/app/application/`；入口 `backend/app/api/` | 业务用例、归属检查；接口协议 |
+| ③ AI 处理层 | `backend/app/intelligence/` | 解析、切片、检索策略、生成、引用 |
+| ④ 数据与外部服务层 | `backend/app/infrastructure/` | 数据库、原文件、Chroma、模型客户端、任务执行 |
+
+`main.py` 是组装入口，`config.py` 是公共配置，不承担业务用例。当前不增加抽象基类；占位模块仍待实现。
 
 详细结构见 [架构与文件图](docs/architecture.md)，功能边界见 [演示验收清单](docs/demo-checklist.md)。
 

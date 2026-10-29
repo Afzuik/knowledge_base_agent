@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.config import settings
-from app.services.identity import get_local_owner_id
+from app.application.identity import get_local_owner_id
 from app.main import create_app
 
 

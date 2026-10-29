@@ -4,7 +4,7 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T>
   return response.json() as Promise<T>
 }
 
-import type { HealthResponse } from './types'
+import type { HealthResponse } from '../types'
 
 export function getHealth(signal?: AbortSignal) {
   return getJson<HealthResponse>('/health', signal)
