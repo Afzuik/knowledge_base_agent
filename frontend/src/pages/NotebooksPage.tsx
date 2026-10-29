@@ -1,14 +1,38 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { createNotebook, getNotebooks } from '../api'
+import type { Notebook } from '../types'
 import { EmptyState } from '../components/common/EmptyState'
 
-export function NotebooksPage() {
-  return (
-    <section className="home-page">
-      <p className="eyebrow">SOURCE-GROUNDED WORKSPACE</p>
-      <h1>从资料出发，让研究有据可循。</h1>
-      <p className="intro">专题组织资料，对话帮助理解，引用支持核验，笔记沉淀成果。</p>
-      <div className="section-title"><h2>我的专题</h2><button disabled>创建专题 · 待实现</button></div>
-      <EmptyState title="专题功能尚未接入" description="这是工程骨架，不是已加载的空知识库。下一步将实现专题创建、资料上传与真实问答。" />
-      <div className="flow-strip">导入资料 <span>→</span> 选择来源 <span>→</span> 提问与核验 <span>→</span> 保存笔记</div>
-    </section>
-  )
+export function NotebooksPage({ onOpen }: { onOpen: (id: string) => void }) {
+  const [notebooks, setNotebooks] = useState<Notebook[]>([])
+  const [name, setName] = useState(''); const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true); const [creating, setCreating] = useState(false)
+  const [refresh, setRefresh] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController(); let active = true
+    setLoading(true); setError('')
+    getNotebooks(controller.signal).then(rows => { if (active) setNotebooks(rows) })
+      .catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false; controller.abort() }
+  }, [refresh])
+  async function submit(event: FormEvent) {
+    event.preventDefault(); if (!name.trim() || creating) return
+    setCreating(true); setError('')
+    try { const row = await createNotebook(name.trim()); onOpen(row.id) }
+    catch (e) { setError((e as Error).message) }
+    finally { setCreating(false) }
+  }
+  return <section className="home-page">
+    <p className="eyebrow">SOURCE-GROUNDED WORKSPACE</p><h1>从资料出发，让研究有据可循。</h1>
+    <p className="intro">先创建一个专题，导入资料并核对解析结果。问答与笔记将在下一阶段接入。</p>
+    <form onSubmit={submit} className="create-form"><label htmlFor="notebook-name">专题名称</label>
+      <input id="notebook-name" value={name} onChange={e => setName(e.target.value)} maxLength={100} required placeholder="例如：Agent 技术学习" />
+      <button disabled={creating || !name.trim()}>{creating ? '创建中…' : '创建专题'}</button></form>
+    {error && <div role="alert" className="error">{error} <button onClick={() => setRefresh(x => x + 1)}>刷新列表</button></div>}
+    <div className="section-title"><h2>我的专题</h2><span>{notebooks.length} 个专题</span></div>
+    {loading ? <p role="status">正在加载专题…</p> : !error && notebooks.length === 0 ?
+      <EmptyState title="还没有专题" description="创建专题后即可上传 PDF、Markdown 或 TXT。" /> :
+      <div className="notebook-grid">{notebooks.map(n => <button className="notebook-card" key={n.id} onClick={() => onOpen(n.id)}>
+        <h3>{n.name}</h3><p>创建于 {new Date(n.created_at).toLocaleString()}</p><span>打开专题 →</span></button>)}</div>}
+  </section>
 }

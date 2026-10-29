@@ -1,43 +1,34 @@
 # 知识研究工作台
 
-面向个人学习与研究的来源驱动 AI 工作台：专题组织资料，对话帮助理解，引用支持核验，笔记沉淀成果。
+面向个人学习与研究的来源驱动 AI 工作台。当前交付 **资料入库链路**，尚未接入模型或问答。
 
-> **当前阶段：工程骨架。** 已有页面布局、健康检查、静态前端托管和基础测试。专题、上传、RAG、引用与笔记业务尚未实现；界面中的待实现功能不会返回假成功。
+## 已实现
 
-## 技术与目录
+- 创建、查询专题；名称去除首尾空格，1～100 字符，允许同名。
+- 上传文本型 PDF、Markdown、TXT；原文件本地保存，默认单文件 20 MiB。
+- 后台串行解析与切片，展示等待、解析中、已解析、失败及任务历史。
+- 预览原文片段、PDF 页码或文本字符位置；分页获取片段。
+- 同专题按 SHA256 去重；失败重试、重启恢复、临时文件/孤立文件清理。
+- SQLite 持久化四张业务表；数据库版本通过 `PRAGMA user_version` 管理。
 
-- 前端：React、TypeScript、Vite、Tailwind CSS。
-- 后端：FastAPI、SQLAlchemy；SQLite 连接工厂已准备，尚未建表。
-- 计划接入：Chroma、Embedding、LLM、可选 Reranker，当前没有模型调用。
-- 运行范围：**仅本机单用户**，不具备真实登录、多租户隔离或公网部署条件。
+**已解析不等于可问答。** 当前所有资料都显示“未索引”；不调用 LLM、Embedding 或 Reranker，也不生成向量。注册登录、多用户隔离、笔记、问答和引用生成尚未实现。
 
-```text
-frontend/   前端页面、组件、请求封装
-backend/    四层映射的后端：api / application / intelligence / infrastructure
-data/       新版运行数据（不提交用户文件或数据库）
-docs/       工程架构与演示验收说明
-samples/    公开演示资料（目前只有说明）
-scripts/    统一启动入口
-```
+## 四层架构
 
-## 四层架构导航
-
-| 系统层 | 代码位置 | 查找内容 |
+| 层 | 代码位置 | 职责 |
 |---|---|---|
-| ① 界面层 | `frontend/src/` | 页面、交互、HTTP 请求封装 |
-| ② 应用层 | `backend/app/application/`；入口 `backend/app/api/` | 业务用例、归属检查；接口协议 |
-| ③ AI 处理层 | `backend/app/intelligence/` | 解析、切片、检索策略、生成、引用 |
-| ④ 数据与外部服务层 | `backend/app/infrastructure/` | 数据库、原文件、Chroma、模型客户端、任务执行 |
+| ① 界面层 | `frontend/src/` | 专题、上传、状态轮询、片段预览 |
+| ② 应用层 | `backend/app/application/`，HTTP 入口 `backend/app/api/` | 用例、归属校验、导入编排、错误与重试规则 |
+| ③ AI 处理层 | `backend/app/intelligence/` | 当前只做本地文本解析和切片，不调用 AI 模型 |
+| ④ 数据与外部服务层 | `backend/app/infrastructure/` | SQLite、原文件、后台执行；模型和向量模块仍为占位 |
 
-`main.py` 是组装入口，`config.py` 是公共配置，不承担业务用例。当前不增加抽象基类；占位模块仍待实现。
+详见 [架构文档](docs/architecture.md)、[接口与运行说明](docs/ingestion.md)、[验收记录](docs/testing.md)。
 
-详细结构见 [架构与文件图](docs/architecture.md)，功能边界见 [演示验收清单](docs/demo-checklist.md)。
+## 安装与启动
 
-旧版已独立归档到同级 `knowledge_base_agent_legacy`，学习笔记保留在同级 `learning-notes`；它们均不属于本 Git 仓库，新版不依赖它们启动。
+支持 macOS / Linux；Python 3.12、uv、Node.js（`^20.19.0 || >=22.12.0`）、npm。本轮进程互斥使用 POSIX 文件锁，**Windows 暂未支持或验证**。
 
-## 安装
-
-前置条件：uv、Python 3.12、Node.js（`^20.19.0 || >=22.12.0`）、npm。以下命令在本仓库根目录执行。
+在仓库根目录执行：
 
 ```bash
 (cd backend && uv sync --frozen)
@@ -45,18 +36,33 @@ scripts/    统一启动入口
 bash scripts/run_local.sh
 ```
 
-浏览器打开 <http://127.0.0.1:8765>。Ctrl+C 停止服务。当前无需 API Key；`backend/.env.example` 只是未来配置模板，尚未加载。
+打开 <http://127.0.0.1:8765>。首次启动会应用版本 1 的建表迁移；导入模块本身不会建库。Ctrl+C 正常关闭时等待当前任务完成。
 
-开发时，在后端运行的基础上另开终端：
+无需 API Key，也不会读取旧 `.env`。原版与 `learning-notes` 均在仓库外，不会自动导入。
+
+### 演示
+
+1. 创建“Agent 学习”专题。
+2. 上传 `samples/agent-learning.md` 或 `samples/reading-note.txt`。
+3. 等待“已解析”，点击资料核对片段。
+4. 重复上传同一文件，观察去重提示。
+5. 刷新或停止服务后重新启动，专题、资料与片段仍然存在。
+
+文本需要 UTF-8；扫描件无文本、损坏或加密 PDF 将显示明确失败原因。重试不会修复损坏内容，需要恢复原文件或上传修正后的新资料。
+
+### 开发与独立数据目录
+
+运行后端的同时，在另一个终端执行 `(cd frontend && npm run dev)`，访问 <http://127.0.0.1:5173>。
+
+可通过非敏感环境变量指定独立绝对数据目录，例如：
 
 ```bash
-cd frontend
-npm run dev
+WORKBENCH_DATA_DIR="$PWD/reports/local-demo-data" bash scripts/run_local.sh
 ```
 
-访问 <http://127.0.0.1:5173>，Vite 将 `/api` 请求代理至本地后端。
+仅允许一个后端进程使用同一数据目录，不要添加 `--workers`。服务只监听本机，不要暴露到公网。
 
-## 验证
+## 测试
 
 ```bash
 (cd backend && .venv/bin/python -m pytest -q)
@@ -64,16 +70,14 @@ npm run dev
 bash -n scripts/run_local.sh
 ```
 
-`GET /api/health` 返回 `stage: scaffold` 和 `business_ready: false`，仅代表进程存活，不代表问答功能可用。
+自动化测试全部使用临时目录，不写正式 `data`，也不调用模型。健康接口标识 `ingestion_ready: true`、`qa_ready: false`、`business_ready: false`：资料处理能力已接入，但完整研究流程尚未完成。这不是持续磁盘健康检测。
 
-## 数据与安全边界
+## 数据与限制
 
-- 本地固定身份不是用户认证，不要将服务暴露至公网。
-- 密钥、上传资料、SQLite 数据库、向量库、依赖目录和日志不得提交。
-- 原始文件将放在 `data/uploads`，向量索引放在 `data/chroma`；业务库计划为 `data/app.sqlite3`。
-- `docs` 是工程文档，不自动作为知识库资料。学习笔记需要用户主动上传。
-- 不复制旧版 `.env`、数据库或历史问答到本仓库。
-
-## 下一步
-
-按“专题创建 → 上传解析 → 真实问答与引用 → 笔记与导出”的顺序实现。优先跑通一条真实链路，不引入注册、协同、微服务或复杂 Agent 编排。
+- SQLite：`data/app.sqlite3`；原文件：`data/uploads/<source-id>`；向量目录当前不使用。
+- 数据、原文件、日志、密钥、虚拟环境和构建产物均不提交 Git。
+- 删除整个数据目录不可当成正常的恢复方式。备份/恢复方法见运行说明。
+- 原文件按内容不可变；处理前核验大小与 SHA256，检测手工修改。
+- 这仍是本机单用户应用；固定身份不是认证，专题范围校验不是多租户安全证明。
+- 默认限制 200 页 PDF、200 万字符、单页解压内容 10 MiB；不是隔离恶意 PDF 的沙箱。不要导入不可信的攻击性文件。
+- 不支持 OCR、URL 抓取、文件替换、删除专题或资料；本轮只完成已确认的创建与导入链路。

@@ -1,11 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from .schemas import HealthResponse
 
-from app.api.schemas import HealthResponse
-
-router = APIRouter(tags=["health"])
+router = APIRouter(tags=['health'])
 
 
-@router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
-    # Process liveness only, not database/model readiness.
-    return HealthResponse()
+@router.get('/health', response_model=HealthResponse)
+def health(request: Request):
+    return HealthResponse(max_upload_bytes=request.app.state.config.max_upload_bytes)

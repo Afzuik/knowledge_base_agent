@@ -10,5 +10,5 @@ if [[ ! -x "$ROOT/backend/.venv/bin/python" ]]; then
   exit 1
 fi
 cd "$ROOT/backend"
-echo 'Local scaffold: http://127.0.0.1:8765 — business features are not implemented.'
+echo 'Local ingestion app: http://127.0.0.1:8765 — upload and parsing ready; no models or Q&A.'
 exec .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8765

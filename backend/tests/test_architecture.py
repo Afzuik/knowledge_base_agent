@@ -75,8 +75,9 @@ def test_relocated_connection_factory_uses_configured_path(tmp_path, monkeypatch
         engine.dispose()
 
 
-def test_only_health_business_api_is_exposed():
+def test_api_exposes_ingestion_not_qa():
     from app.main import create_app
-
-    paths = create_app().openapi()["paths"]
-    assert set(paths) == {"/api/health"}
+    paths = create_app().openapi()['paths']
+    assert '/api/notebooks' in paths
+    assert '/api/notebooks/{notebook_id}/sources/{source_id}/chunks' in paths
+    assert '/api/chat' not in paths and '/api/notes' not in paths
